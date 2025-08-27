@@ -1,0 +1,100 @@
+{
+  "designSystem": {
+    "brand": {
+      "name": "MedTrack",
+      "logoStyle": "Minimal icon with lettermark",
+      "primaryColor": "#F97316", 
+      "secondaryColor": "#FFFFFF",
+      "accentColor": "#FFEDD5",
+      "neutralColor": "#111111",
+      "fontColor": "#1A1A1A"
+    },
+    "typography": {
+      "fontFamily": "Inter, sans-serif",
+      "headingFontWeight": "800",
+      "bodyFontWeight": "400",
+      "headingSizes": {
+        "heroTitle": "48px",
+        "sectionHeading": "32px",
+        "subheading": "20px"
+      },
+      "bodyTextSize": "16px",
+      "buttonTextSize": "16px"
+    },
+    "layout": {
+      "gridSystem": "12-column",
+      "maxWidth": "1200px",
+      "spacing": {
+        "sectionPadding": "80px",
+        "componentMargin": "32px",
+        "elementGap": "16px"
+      },
+      "alignment": "centered content with large hero section"
+    },
+    "components": {
+      "navbar": {
+        "position": "fixed-top",
+        "layout": "horizontal",
+        "elements": ["logo", "nav-links", "sign-in", "login-button"],
+        "navLinkStyle": "uppercase, small caps, muted tone",
+        "ctaButtonStyle": {
+          "background": "#F97316",
+          "textColor": "#FFFFFF",
+          "borderRadius": "8px",
+          "padding": "12px 20px"
+        }
+      },
+      "heroSection": {
+        "titleAlignment": "center",
+        "button": {
+          "label": "Get Started",
+          "icon": "arrow-right",
+          "background": "#F97316",
+          "textColor": "#FFFFFF",
+          "shape": "pill",
+          "size": "large"
+        },
+        "subtext": {
+          "maxWidth": "600px",
+          "textAlign": "center",
+          "color": "#555555"
+        },
+        "backgroundStyle": "light grid overlay"
+      },
+      "statCards": {
+        "shape": "rounded",
+        "shadow": "soft",
+        "dataHighlightColor": "#F97316",
+        "textAlign": "center",
+        "icons": "minimal emoji avatars or fitness icons"
+      },
+      "mobilePreview": {
+        "deviceMockup": "iPhone-style",
+        "content": ["greeting", "circular progress bars", "step tracker"],
+        "chartStyle": "semi-circular donut with pastel segments"
+      }
+    },
+    "visuals": {
+      "charts": {
+        "type": ["bar", "donut", "circular progress"],
+        "colors": ["#F97316", "#60A5FA", "#34D399"],
+        "style": "minimal, round-ended bars"
+      },
+      "icons": {
+        "type": "line and flat icons",
+        "useCase": "navigation, metrics, badges"
+      },
+      "illustrations": "minimal app screenshot overlays"
+    },
+    "interactions": {
+      "buttons": {
+        "hoverEffect": "darken background",
+        "transition": "ease-in-out 0.3s"
+      },
+      "navActiveState": {
+        "underline": true,
+        "colorChange": "#F97316"
+      }
+    }
+  }
+}

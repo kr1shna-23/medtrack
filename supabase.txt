@@ -1,0 +1,2 @@
+supabase db pass: z8u1sZe0kMvuYEAQ
+supabase acc login: KKverma@2004
