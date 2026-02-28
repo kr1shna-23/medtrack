@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Plus, Search, Filter, Edit, Trash2, Clock, Calendar, X, Save } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
+import { supabase } from "../lib/supabase"
 
 const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
   const [formData, setFormData] = useState({
@@ -323,17 +324,36 @@ const Medications = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMedication, setEditingMedication] = useState(null)
 
-  // Initialize with mock data
-  const [medications, setMedications] = useState([
-    { id: 1, name: "Lisinopril", type: "Blood Pressure", dosage: "10mg", frequency: "Once daily", time: ["08:00"], refill_date: "2024-12-01", notes: "Take with food" },
-    { id: 2, name: "Metformin", type: "Diabetes", dosage: "500mg", frequency: "Twice daily", time: ["08:00", "20:00"], refill_date: "2024-11-20", notes: "" },
-  ])
-  const [loading, setLoading] = useState(false)
+  const [medications, setMedications] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const fetchMedications = async () => {
+    if (!session?.user?.id) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('medications')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setMedications(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMedications();
+  }, [session]);
 
   const filteredMedications = medications.filter((med) => {
     const matchesSearch =
-      med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      med.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (med.type && med.type.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter = filterType === "all" || (med.type && med.type.toLowerCase().includes(filterType.toLowerCase()));
     return matchesSearch && matchesFilter
@@ -346,7 +366,13 @@ const Medications = () => {
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this medication?")) {
-      setMedications(medications.filter((med) => med.id !== id))
+      try {
+        const { error } = await supabase.from('medications').delete().eq('id', id);
+        if (error) throw error;
+        setMedications(medications.filter((med) => med.id !== id))
+      } catch (err) {
+        setError(err.message);
+      }
     }
   }
 
@@ -357,16 +383,30 @@ const Medications = () => {
 
   const handleSave = async (formData) => {
     try {
+      const medicationData = {
+        ...formData,
+        user_id: session.user.id,
+      };
+
       if (editingMedication) {
-        // Update existing medication in UI state
-        const updatedMed = { ...editingMedication, ...formData };
-        setMedications(
-          medications.map((med) => (med.id === editingMedication.id ? updatedMed : med))
-        )
+        const { data, error } = await supabase
+          .from('medications')
+          .update(medicationData)
+          .eq('id', editingMedication.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setMedications(medications.map((med) => (med.id === editingMedication.id ? data : med)));
       } else {
-        // Add new medication to UI state
-        const newMed = { ...formData, id: Date.now() };
-        setMedications([newMed, ...medications])
+        const { data, error } = await supabase
+          .from('medications')
+          .insert(medicationData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setMedications([data, ...medications]);
       }
     } catch (error) {
       setError(error.message)

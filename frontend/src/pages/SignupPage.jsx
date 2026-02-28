@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, CheckCircle } from "lucide-react"
+import { supabase } from "../lib/supabase"
 
 const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -29,10 +30,27 @@ const SignupPage = () => {
       return
     }
 
-    // Simulate network request
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
       navigate("/app")
-    }, 500)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleChange = (e) => {

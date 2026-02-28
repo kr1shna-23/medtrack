@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react"
+import { supabase } from "../lib/supabase"
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -17,10 +18,22 @@ const LoginPage = () => {
     setLoading(true)
     setError(null)
 
-    // Simulate network request
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
       navigate("/app")
-    }, 500)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleChange = (e) => {

@@ -1,22 +1,18 @@
-// Mocked supabase instance since the backend is disconnected
-export const supabase = {
-    auth: {
-        getSession: async () => ({ data: { session: null } }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-        signInWithPassword: async () => ({ error: null }),
-        signUp: async () => ({ error: null }),
-        signOut: async () => ({ error: null }),
-    },
-    from: () => ({
-        select: () => ({ eq: async () => ({ data: [], error: null }) }),
-        insert: async () => ({ data: null, error: null }),
-        update: () => ({ eq: async () => ({ data: null, error: null }) }),
-        delete: () => ({ eq: async () => ({ error: null }) }),
-    }),
-    storage: {
-        from: () => ({
-            download: async () => ({ data: new Blob(), error: null }),
-            upload: async () => ({ error: null })
-        })
-    }
-};
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+try {
+    localStorage.setItem('__quota_test__', '1');
+    localStorage.removeItem('__quota_test__');
+} catch (e) {
+    console.warn("Storage quota exceeded! Clearing localhost cache to restore Supabase operations.");
+    localStorage.clear();
+}
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Missing Supabase credentials in frontend .env");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)

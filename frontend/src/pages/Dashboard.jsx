@@ -1,6 +1,7 @@
 import { Pill, Bell, Calendar, Clock, CheckCircle } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
 import { useState, useEffect } from "react"
+import { supabase } from "../lib/supabase"
 
 const StatCard = ({ title, value, icon: Icon, color = "blue" }) => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -22,10 +23,10 @@ const MedicationCard = ({ name, dosage, nextDose, status }) => (
       <h3 className="font-semibold text-gray-900">{name}</h3>
       <span
         className={`px-2 py-1 rounded-full text-xs font-medium ${status === "taken"
-            ? "bg-green-100 text-green-800"
-            : status === "due"
-              ? "bg-yellow-100 text-yellow-800"
-              : "bg-gray-100 text-gray-800"
+          ? "bg-green-100 text-green-800"
+          : status === "due"
+            ? "bg-yellow-100 text-yellow-800"
+            : "bg-gray-100 text-gray-800"
           }`}
       >
         {status}
@@ -58,39 +59,46 @@ const Dashboard = () => {
     const fetchData = async () => {
       setDashboardData((prev) => ({ ...prev, loading: true }));
 
-      // Mock Data
+      if (!session) return;
+
       const now = new Date();
       const nowISO = now.toISOString();
 
-      const mockMedications = [
-        { id: 1, name: "Lisinopril", dosage: "10mg", refill_date: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 2, name: "Metformin", dosage: "500mg", refill_date: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 3, name: "Vitamin D3", dosage: "1000 IU", refill_date: new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString() }
-      ];
+      try {
+        const [medReq, remReq] = await Promise.all([
+          supabase.from('medications').select('*').eq('user_id', session.user.id),
+          supabase.from('reminders').select('*').eq('user_id', session.user.id).gte('reminder_time', nowISO).order('reminder_time', { ascending: true })
+        ]);
 
-      const mockUpcomingReminders = [
-        { id: 1, type: "whatsapp", reminder_time: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(), medications: { name: "Lisinopril" } },
-        { id: 2, type: "email", reminder_time: new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString(), medications: { name: "Metformin" } },
-        { id: 3, type: "whatsapp", reminder_time: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(), medications: { name: "Vitamin D3" } }
-      ]
+        const mockMedications = medReq.data || [];
+        const mockUpcomingReminders = remReq.data || [];
 
-      setTimeout(() => {
-        const nextRefillDate = new Date(mockMedications[1].refill_date);
-        const nextRefill = `${Math.ceil((nextRefillDate - now) / (1000 * 60 * 60 * 24))} days`;
+        let nextRefill = "N/A";
+        const futureRefills = mockMedications
+          .filter(m => m.refill_date && new Date(m.refill_date) > now)
+          .sort((a, b) => new Date(a.refill_date) - new Date(b.refill_date));
+
+        if (futureRefills.length > 0) {
+          const nextRefillDate = new Date(futureRefills[0].refill_date);
+          nextRefill = `${Math.ceil((nextRefillDate - now) / (1000 * 60 * 60 * 24))} days`;
+        }
 
         setDashboardData({
           stats: {
-            totalMedications: 3,
-            totalReminders: 3,
-            medsTakenToday: 2,
-            upcomingReminders: 3,
+            totalMedications: mockMedications.length,
+            totalReminders: mockUpcomingReminders.length,
+            medsTakenToday: 0,
+            upcomingReminders: mockUpcomingReminders.length,
             nextRefill,
           },
           upcomingReminders: mockUpcomingReminders,
           medicationSummary: mockMedications,
           loading: false,
         });
-      }, 500); // Simulate network latency
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+        setDashboardData((prev) => ({ ...prev, loading: false }));
+      }
     };
 
     fetchData();
@@ -126,7 +134,7 @@ const Dashboard = () => {
               dashboardData.upcomingReminders.map((reminder) => (
                 <div key={reminder.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{reminder.medications?.name || "Unknown Medication"}</p>
+                    <p className="font-medium text-gray-900">{reminder.medication_name || reminder.medications?.name || "Unknown Medication"}</p>
                     <p className="text-sm text-gray-600">
                       {new Date(reminder.reminder_time).toLocaleTimeString([], {
                         hour: "2-digit",

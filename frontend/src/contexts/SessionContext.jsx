@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useContext } from 'react';
+import { supabase } from '../lib/supabase';
 
 const SessionContext = createContext();
 
@@ -7,21 +8,22 @@ export const SessionProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Provide a mocked session immediately instead of contacting Supabase
-    setSession({
-      user: {
-        id: "mock-user-123",
-        email: "testuser@example.com",
-        user_metadata: {
-          full_name: "Test User"
-        }
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
     });
-    setLoading(false);
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
-    <SessionContext.Provider value={{ session, loading, setSession }}>
+    <SessionContext.Provider value={{ session, loading }}>
       {children}
     </SessionContext.Provider>
   );

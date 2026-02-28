@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { User, Mail, Phone, Bell, Shield, Edit, Save, X, Trash2, Upload } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
+import { supabase } from "../lib/supabase"
 
 const Avatar = ({ url, onUpload, isEditing }) => {
   const [avatarUrl, setAvatarUrl] = useState(url)
@@ -82,7 +83,10 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
-      // Mock save to database
+      const { data, error } = await supabase.auth.updateUser({
+        data: { full_name: formData.full_name, phone_number: formData.phone_number }
+      })
+      if (error) throw error;
       setIsEditing(false)
     } catch (error) {
       setError(error.message)
@@ -91,7 +95,10 @@ const Profile = () => {
 
   const updateAvatar = async (url) => {
     try {
-      // Mock save to database
+      const { data, error } = await supabase.auth.updateUser({
+        data: { avatar_url: url }
+      })
+      if (error) throw error;
       setFormData({ ...formData, avatar_url: url })
     } catch (error) {
       setError(error.message)
