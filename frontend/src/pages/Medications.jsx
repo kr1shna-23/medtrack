@@ -17,6 +17,8 @@ const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
     notes: "",
   })
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +57,13 @@ const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
   }, [medication, isOpen])
 
   useEffect(() => {
+    if (isOpen) {
+      setSaveError(null)
+      setSaving(false)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
     const getTimesCount = (frequency) => {
       switch (frequency) {
         case "Twice daily":
@@ -70,12 +79,21 @@ const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
     setFormData((prev) => ({ ...prev, times: newTimes }))
   }, [formData.frequency])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const dataToSave = { ...formData, time: formData.times }
-    delete dataToSave.times
-    onSave(dataToSave)
-    onClose()
+    setSaving(true)
+    setSaveError(null)
+
+    try {
+      const dataToSave = { ...formData, time: formData.times }
+      delete dataToSave.times
+      await onSave(dataToSave)
+      onClose()
+    } catch (error) {
+      setSaveError(error.message || "Unable to save medication")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleChange = (e) => {
@@ -104,6 +122,8 @@ const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+            {saveError && <p className="text-red-500 text-sm text-center bg-red-100 p-3 rounded-lg">{saveError}</p>}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Medication Name</label>
               <input
@@ -248,10 +268,11 @@ const MedicationModal = ({ isOpen, onClose, medication = null, onSave }) => {
               </button>
               <button
                 type="submit"
+                disabled={saving}
                 className="flex-1 px-4 py-2.5 bg-[#F97316] text-white rounded-lg hover:bg-[#F97316]/90 transition-colors flex items-center justify-center shadow-sm"
               >
                 <Save size={18} className="mr-2" />
-                {medication ? "Update Medication" : "Add Medication"}
+                {saving ? "Saving..." : medication ? "Update Medication" : "Add Medication"}
               </button>
             </div>
           </form>
@@ -317,6 +338,20 @@ const MedicationCard = ({ medication, onEdit, onDelete }) => (
   </div>
 );
 
+const normalizeMedicationPayload = (formData, userId) => ({
+  name: formData.name?.trim() || "",
+  type: formData.type || null,
+  dosage: formData.dosage?.trim() || null,
+  frequency: formData.frequency || null,
+  time: Array.isArray(formData.time)
+    ? formData.time.map((time) => time?.trim()).filter(Boolean)
+    : [],
+  refill_date: formData.refill_date || null,
+  refill_reminder: formData.refill_reminder ? Number(formData.refill_reminder) : null,
+  notes: formData.notes?.trim() || null,
+  user_id: userId,
+})
+
 const Medications = () => {
   const { session } = useSession()
   const [searchTerm, setSearchTerm] = useState("")
@@ -367,7 +402,11 @@ const Medications = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this medication?")) {
       try {
-        const { error } = await supabase.from('medications').delete().eq('id', id);
+        const { error } = await supabase
+          .from('medications')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', session.user.id);
         if (error) throw error;
         setMedications(medications.filter((med) => med.id !== id))
       } catch (err) {
@@ -383,16 +422,15 @@ const Medications = () => {
 
   const handleSave = async (formData) => {
     try {
-      const medicationData = {
-        ...formData,
-        user_id: session.user.id,
-      };
+      setError(null)
+      const medicationData = normalizeMedicationPayload(formData, session.user.id);
 
       if (editingMedication) {
         const { data, error } = await supabase
           .from('medications')
           .update(medicationData)
           .eq('id', editingMedication.id)
+          .eq('user_id', session.user.id)
           .select()
           .single();
 
@@ -410,6 +448,7 @@ const Medications = () => {
       }
     } catch (error) {
       setError(error.message)
+      throw error
     }
   }
 

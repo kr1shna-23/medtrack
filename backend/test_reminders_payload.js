@@ -1,7 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
-const URL = 'https://jirlobiyhgycnkafuhcg.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppcmxvYml5aGd5Y25rYWZ1aGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTU4ODgsImV4cCI6MjA4Nzg3MTg4OH0.CkwpqDEIag9BG8E7L1EZ5dgtsjBcR4MUoOseUuwGdlo';
+const URL = process.env.SUPABASE_URL;
+const KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!URL || !KEY) {
+    throw new Error('Missing SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY');
+}
 
 const supabase = createClient(URL, KEY, {
     auth: { autoRefreshToken: false, persistSession: false }

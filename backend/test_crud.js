@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 // 1. Confirm environment variables
 dotenv.config();
 const URL = process.env.SUPABASE_URL;
-const ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!URL || !ANON_KEY || !SERVICE_KEY) {
     console.error("❌ Code misconfiguration: Missing environment variables.");

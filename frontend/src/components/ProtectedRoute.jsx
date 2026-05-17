@@ -5,7 +5,11 @@ const ProtectedRoute = () => {
   const { session, loading } = useSession();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
+        Checking your session...
+      </div>
+    );
   }
 
   if (!session) {

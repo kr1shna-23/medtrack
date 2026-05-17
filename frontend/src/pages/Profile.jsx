@@ -1,15 +1,38 @@
 import { useState, useEffect } from "react"
-import { User, Mail, Phone, Bell, Shield, Edit, Save, X, Trash2, Upload } from "lucide-react"
+import { User, Upload } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
 import { supabase } from "../lib/supabase"
 
-const Avatar = ({ url, onUpload, isEditing }) => {
-  const [avatarUrl, setAvatarUrl] = useState(url)
+const Avatar = ({ path, onUpload, isEditing, userId }) => {
+  const [avatarUrl, setAvatarUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    setAvatarUrl(url)
-  }, [url])
+    let objectUrl = null;
+
+    const downloadImage = async () => {
+      if (!path) {
+        setAvatarUrl(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.storage.from("avatars").download(path);
+        if (error) throw error;
+        objectUrl = URL.createObjectURL(data);
+        setAvatarUrl(objectUrl);
+      } catch (error) {
+        console.error("Error downloading avatar:", error.message);
+        setAvatarUrl(null);
+      }
+    };
+
+    downloadImage();
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path])
 
   const uploadAvatar = async (event) => {
     try {
@@ -17,15 +40,27 @@ const Avatar = ({ url, onUpload, isEditing }) => {
       if (!event.target.files || event.target.files.length === 0) {
         throw new Error("You must select an image to upload.")
       }
+      if (!userId) {
+        throw new Error("You must be signed in to upload an avatar.")
+      }
 
       const file = event.target.files[0]
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const fileUrl = reader.result;
-        setAvatarUrl(fileUrl)
-        onUpload(fileUrl)
-      }
-      reader.readAsDataURL(file)
+      const fileExt = file.name.split(".").pop()
+      const filePath = `${userId}/avatar.${fileExt}`
+      const previewUrl = URL.createObjectURL(file)
+
+      const { error } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          contentType: file.type,
+          upsert: true,
+        })
+
+      if (error) throw error
+
+      setAvatarUrl(previewUrl)
+      await onUpload(filePath)
     } catch (error) {
       alert(error.message)
     } finally {
@@ -46,7 +81,7 @@ const Avatar = ({ url, onUpload, isEditing }) => {
           )}
           {isEditing && (
             <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-              <Upload size={24} className="text-white" />
+              <Upload size={24} className={`text-white ${uploading ? "animate-pulse" : ""}`} />
             </div>
           )}
         </div>
@@ -71,10 +106,50 @@ const Profile = () => {
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    full_name: session?.user?.user_metadata?.full_name || "Test User",
-    phone_number: "+1 234 567 8900",
+    full_name: "",
+    phone_number: "",
     avatar_url: null,
   })
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name, phone_number, avatar_url")
+          .eq("id", session.user.id)
+          .single();
+
+        if (error && error.code !== "PGRST116") throw error;
+
+        const profile = data || {
+          full_name: session.user.user_metadata?.full_name || "",
+          phone_number: session.user.user_metadata?.phone_number || "",
+          avatar_url: session.user.user_metadata?.avatar_url || null,
+        };
+
+        if (!data) {
+          await supabase.from("profiles").upsert({
+            id: session.user.id,
+            ...profile,
+          });
+        }
+
+        setFormData(profile);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [session]);
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -83,23 +158,38 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { full_name: formData.full_name, phone_number: formData.phone_number }
+      setLoading(true)
+      setError(null)
+
+      const { error } = await supabase.from("profiles").upsert({
+        id: session.user.id,
+        full_name: formData.full_name,
+        phone_number: formData.phone_number,
+        avatar_url: formData.avatar_url,
       })
       if (error) throw error;
+
+      await supabase.auth.updateUser({
+        data: { full_name: formData.full_name, phone_number: formData.phone_number }
+      })
+
       setIsEditing(false)
     } catch (error) {
       setError(error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const updateAvatar = async (url) => {
+  const updateAvatar = async (path) => {
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { avatar_url: url }
-      })
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: path })
+        .eq("id", session.user.id)
+
       if (error) throw error;
-      setFormData({ ...formData, avatar_url: url })
+      setFormData({ ...formData, avatar_url: path })
     } catch (error) {
       setError(error.message)
     }
@@ -111,14 +201,17 @@ const Profile = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {error && <p className="text-red-500 text-sm text-center bg-red-100 p-3 rounded-lg mb-4">{error}</p>}
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center space-x-4">
         <Avatar
-          url={formData.avatar_url}
+          path={formData.avatar_url}
           isEditing={isEditing}
-          onUpload={(url) => updateAvatar(url)}
+          userId={session?.user?.id}
+          onUpload={(path) => updateAvatar(path)}
         />
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-800">{formData.full_name}</h2>
+          <h2 className="text-xl font-bold text-gray-800">{formData.full_name || "User"}</h2>
           <p className="text-sm text-gray-500">{session?.user?.email}</p>
         </div>
         {isEditing ? (
@@ -131,9 +224,10 @@ const Profile = () => {
             </button>
             <button
               onClick={handleSave}
+              disabled={loading}
               className="px-4 py-2 bg-[#F97316] text-white rounded-lg hover:bg-[#F97316]/90 text-sm font-semibold"
             >
-              Update
+              {loading ? "Updating..." : "Update"}
             </button>
           </div>
         ) : (

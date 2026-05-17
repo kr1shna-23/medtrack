@@ -8,8 +8,12 @@ const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.resolve(__dirname, 'frontend/.env') })
 
-const URL = process.env.VITE_SUPABASE_URL || 'https://jirlobiyhgycnkafuhcg.supabase.co';
-const KEY = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppcmxvYml5aGd5Y25rYWZ1aGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTU4ODgsImV4cCI6MjA4Nzg3MTg4OH0.CkwpqDEIag9BG8E7L1EZ5dgtsjBcR4MUoOseUuwGdlo';
+const URL = process.env.VITE_SUPABASE_URL;
+const KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!URL || !KEY) {
+    throw new Error('Missing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY/VITE_SUPABASE_ANON_KEY');
+}
 
 const supabase = createClient(URL, KEY, {
     auth: { autoRefreshToken: false, persistSession: false }

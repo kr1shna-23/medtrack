@@ -17,12 +17,14 @@ const SignupPage = () => {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [successMessage, setSuccessMessage] = useState(null)
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
@@ -31,7 +33,7 @@ const SignupPage = () => {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -45,7 +47,11 @@ const SignupPage = () => {
         throw error;
       }
 
-      navigate("/app")
+      if (data.session) {
+        navigate("/app")
+      } else {
+        setSuccessMessage("Account created. Check your email to confirm your account, then sign in.")
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -83,6 +89,7 @@ const SignupPage = () => {
           </div>
 
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          {successMessage && <p className="text-green-600 text-sm text-center">{successMessage}</p>}
 
           {/* Benefits */}
           <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-[#F97316]/5 rounded-lg border border-[#F97316]/10">

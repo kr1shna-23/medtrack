@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
 
 try {
     localStorage.setItem('__quota_test__', '1');
@@ -11,8 +11,18 @@ try {
     localStorage.clear();
 }
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabasePublishableKey) {
     console.error("Missing Supabase credentials in frontend .env");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const clearSupabaseAuthStorage = () => {
+    if (typeof localStorage === 'undefined') return;
+
+    Object.keys(localStorage)
+        .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
+        .forEach((key) => localStorage.removeItem(key));
+
+    localStorage.removeItem('supabase.auth.token');
+}
+
+export const supabase = createClient(supabaseUrl, supabasePublishableKey)
