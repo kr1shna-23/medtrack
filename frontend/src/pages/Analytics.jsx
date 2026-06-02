@@ -72,7 +72,7 @@ const Analytics = () => {
   const [timeRange, setTimeRange] = useState("week")
   const [selectedMetric, setSelectedMetric] = useState("adherence")
 
-  // Sample data - in real app, this would come from your backend
+  // Sample data - in real app, this would come from Supabase adherence data.
   const adherenceData = [
     { day: "Mon", taken: 4, total: 4 },
     { day: "Tue", taken: 3, total: 4 },

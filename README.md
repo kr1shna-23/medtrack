@@ -1,33 +1,66 @@
-# MedTrack - Medication Reminder and Management System
+# MedTrack
 
-MedTrack is a comprehensive application designed to help users manage their medications and set up reminders. It aims to simplify medication adherence and improve health outcomes.
+MedTrack is a React + Supabase medication tracker. Users can sign up, confirm their email, sign in with Google, manage medications, configure reminder channels, and update profile details including avatar upload.
+
+## Current Architecture
+
+- Frontend: React, Vite, Tailwind CSS, React Router, Lucide React.
+- Backend services: Supabase Auth, Postgres, Row Level Security, and Storage.
+- Database source of truth: `supabase/migrations/`.
+- Notification delivery target: Supabase Edge Functions + Supabase Cron.
+
+There is no active Express/Node backend in this repository. The old polling/server prototype was removed because reminders are planned to run through Supabase Edge Functions.
 
 ## Features
 
-*   **Medication Management**: Keep track of all your prescribed medications.
-*   **Reminder System**: Set up timely reminders for your medication doses.
-*   **User Authentication**: Secure user login and registration.
-*   **Dashboard**: Overview of your medication schedule and adherence.
+- Public landing page.
+- Email/password signup with Supabase email confirmation.
+- Google OAuth login/signup.
+- Protected app routes.
+- Medication CRUD with multiple dose times.
+- Reminder channel preferences for email, WhatsApp, both, or neither.
+- Profile update and private avatar storage.
 
-## Technologies Used
+## Setup
 
-*   **Frontend**: React, Vite, Tailwind CSS
-*   **Backend**: Node.js, Express.js, Supabase (for database and authentication)
+Frontend environment:
 
-## Installation and Setup
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+```
 
-Detailed installation instructions will be provided here.
+Run the app:
 
-## Pending Improvements and Future Enhancements
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-*   **Row-Level Security (RLS)**: Full implementation of RLS for enhanced data security is pending.
-*   **Authentication Navbar Responsiveness**: Improve the responsiveness of the authentication navigation bar across various devices.
-*   **Additional Features**: Further features like analytics, medication history, and doctor consultations are planned.
+Verify:
 
-## How to Contribute
+```bash
+cd frontend
+npm run build
+npm run lint
+```
 
-Contributions are welcome! Please refer to the `CONTRIBUTING.md` (to be created) for guidelines.
+## Supabase
 
-## License
+Apply the SQL files in `supabase/migrations/` to a new Supabase project:
 
-This project is licensed under the MIT License.
+- `20260513000000_medtrack_schema.sql`
+- `20260513000001_avatar_storage.sql`
+
+These create the app tables, RLS policies, profile creation trigger, and private avatar bucket policies.
+
+## Notifications
+
+Email and WhatsApp delivery is not implemented yet. The planned approach is:
+
+- Supabase Edge Function named `send-reminders`.
+- Supabase Cron invoking that function every minute.
+- SendGrid for email.
+- Twilio WhatsApp for WhatsApp.
+- Secrets stored in Supabase Edge Function secrets, never in frontend code.

@@ -16,6 +16,7 @@ const SignupPage = () => {
     agreeToTerms: false,
   })
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
   const navigate = useNavigate()
@@ -67,6 +68,32 @@ const SignupPage = () => {
     })
   }
 
+  const handleGoogleSignUp = async () => {
+    setError(null)
+    setSuccessMessage(null)
+
+    if (!formData.agreeToTerms) {
+      setError("Please agree to the Terms of Service and Privacy Policy first.")
+      return
+    }
+
+    setGoogleLoading(true)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/app`,
+        },
+      })
+
+      if (error) throw error
+    } catch (err) {
+      setError(err.message)
+      setGoogleLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FFEDD5] via-white to-[#FED7AA] flex items-center justify-center p-4">
       <div className="w-full max-w-sm sm:max-w-md">
@@ -92,7 +119,7 @@ const SignupPage = () => {
           {successMessage && <p className="text-green-600 text-sm text-center">{successMessage}</p>}
 
           {/* Benefits */}
-          <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-[#F97316]/5 rounded-lg border border-[#F97316]/10">
+          <div className="hidden">
             <div className="flex items-center space-x-2 text-xs sm:text-sm">
               <CheckCircle size={14} className="text-[#F97316] flex-shrink-0" />
               <span className="text-[#555555]">Free forever • No credit card required</span>
@@ -100,7 +127,7 @@ const SignupPage = () => {
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             {/* Name Field */}
             <div>
               <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-[#1A1A1A] mb-1 sm:mb-2">
@@ -237,6 +264,18 @@ const SignupPage = () => {
             <span className="px-2 text-xs text-[#555555]">or</span>
             <div className="flex-1 border-t border-gray-200"></div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 sm:py-3 border border-gray-200 rounded-lg bg-white text-[#1A1A1A] hover:bg-gray-50 transition-all font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="h-5 w-5 rounded-full border border-gray-300 flex items-center justify-center text-xs font-bold text-[#4285F4]">
+              G
+            </span>
+            {googleLoading ? "Connecting..." : "Continue with Google"}
+          </button>
 
           {/* Login Link */}
           <div className="text-center">

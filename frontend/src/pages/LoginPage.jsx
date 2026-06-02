@@ -10,6 +10,7 @@ const LoginPage = () => {
     password: "",
   })
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
 
@@ -41,6 +42,25 @@ const LoginPage = () => {
       ...formData,
       [e.target.name]: e.target.value,
     })
+  }
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/app`,
+        },
+      })
+
+      if (error) throw error
+    } catch (err) {
+      setError(err.message)
+      setGoogleLoading(false)
+    }
   }
 
   return (
@@ -148,6 +168,18 @@ const LoginPage = () => {
             <span className="px-2 text-xs text-[#555555]">or</span>
             <div className="flex-1 border-t border-gray-200"></div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 sm:py-3 border border-gray-200 rounded-lg bg-white text-[#1A1A1A] hover:bg-gray-50 transition-all font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="h-5 w-5 rounded-full border border-gray-300 flex items-center justify-center text-xs font-bold text-[#4285F4]">
+              G
+            </span>
+            {googleLoading ? "Connecting..." : "Continue with Google"}
+          </button>
 
           {/* Sign Up Link */}
           <div className="text-center">
