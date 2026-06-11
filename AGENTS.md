@@ -4,7 +4,7 @@ This file gives future coding agents the context needed to work safely in this r
 
 ## Project Summary
 
-MedTrack is a frontend-first medication tracker built with React, Vite, Tailwind CSS, and Supabase. The current app supports auth, medication CRUD, profile editing, avatar upload, and reminder channel preferences. Notification delivery through email/WhatsApp is planned, but should be implemented with Supabase Edge Functions + Supabase Cron rather than the old Node polling backend.
+MedTrack is a frontend-first medication tracker built with React, Vite, Tailwind CSS, and Supabase. The current app supports auth, medication CRUD, profile editing, avatar upload, and reminder channel preferences. Notification delivery uses the planned Supabase Edge Function + Supabase Cron path with Twilio SMS/WhatsApp.
 
 ## Working Directory
 
@@ -70,15 +70,14 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-Do not put Supabase service-role/secret keys, SendGrid keys, or Twilio keys in frontend code or frontend env files.
+Do not put Supabase service-role/secret keys or Twilio keys in frontend code or frontend env files.
 
 Future Supabase Edge Function secrets should be set in Supabase, for example:
 
 ```env
-SENDGRID_API_KEY=
-SENDGRID_FROM_EMAIL=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
+TWILIO_SMS_FROM_NUMBER=
 TWILIO_WHATSAPP_NUMBER=
 ```
 
@@ -102,8 +101,10 @@ TWILIO_WHATSAPP_NUMBER=
   - Medication CRUD.
   - Normalizes blank optional values before Supabase writes.
 - `frontend/src/pages/Reminders.jsx`
-  - Email/WhatsApp reminder channel preferences.
+  - SMS/WhatsApp reminder channel preferences.
   - Stores both selected channels as separate `reminders` rows.
+- `supabase/functions/send-reminders/index.ts`
+  - Edge Function that claims due reminders, sends Twilio SMS/WhatsApp, and reschedules reminder rows.
 - `frontend/src/pages/Profile.jsx`
   - Profile data and avatar upload to Supabase Storage.
 - `frontend/src/layouts/DashboardLayout.jsx`
@@ -128,7 +129,7 @@ All user data tables have RLS enabled. Browser CRUD depends on these policies, s
 
 `reminders.type` is currently one of:
 
-- `email`
+- `sms`
 - `whatsapp`
 
 If a user selects both channels, the frontend creates two reminder rows.
@@ -164,7 +165,7 @@ Recommended direction:
 1. Add a reminder delivery migration with fields such as `last_sent_at`, `last_error`, `send_attempts`, and `locked_until`.
 2. Add a database RPC to claim due reminders safely.
 3. Create `supabase/functions/send-reminders/index.ts`.
-4. Configure SendGrid and Twilio secrets in Supabase.
+4. Configure Twilio secrets in Supabase.
 5. Use Supabase Cron to invoke the Edge Function every minute.
 6. Reschedule successful recurring reminders and record failures.
 
@@ -198,7 +199,7 @@ These warnings are known and not currently blocking.
 - Google OAuth is configured.
 - Local redirect URLs use localhost/127.0.0.1.
 - Production must update Supabase URL Configuration and Google OAuth authorized origins/redirects.
-- Twilio/SendGrid credentials must only live in Supabase Edge Function secrets.
+- Twilio credentials must only live in Supabase Edge Function secrets.
 
 ## Do Not Do
 

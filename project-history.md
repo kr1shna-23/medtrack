@@ -350,9 +350,9 @@ Current architecture after cleanup:
 - `supabase/migrations/` is the database/schema source.
 - Future notification code should go under `supabase/functions/`.
 
-## Current Immediate Next Step
+## Checkpoint 21 Pending Plan Before SMS Pivot
 
-Implement the notification delivery plan:
+At this point, the notification delivery plan still mentioned SendGrid/email:
 
 1. Add reminder delivery migration.
 2. Create `supabase/functions/send-reminders/index.ts`.
@@ -361,3 +361,34 @@ Implement the notification delivery plan:
 5. Test email reminder.
 6. Test WhatsApp reminder.
 7. Confirm success/failure metadata updates.
+
+## Checkpoint 22: Email Dropped For SMS
+
+SendGrid was dropped from the reminder delivery plan because the old SendGrid key could not be reused and a new account was not practical.
+
+New notification channels:
+
+- SMS.
+- WhatsApp.
+
+The user bought a Twilio SMS-capable number for the demo. Required secrets are now:
+
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_SMS_FROM_NUMBER`
+- `TWILIO_WHATSAPP_NUMBER`
+
+Implemented locally:
+
+- Migration `supabase/migrations/20260612000000_sms_whatsapp_notifications.sql`.
+- Edge Function `supabase/functions/send-reminders/index.ts`.
+- Reminder UI changed from Email/WhatsApp to SMS/WhatsApp.
+- Profile phone number validation added for E.164 format.
+
+Remaining:
+
+- Apply the migration to remote Supabase.
+- Set Twilio secrets in Supabase.
+- Deploy the Edge Function.
+- Configure Supabase Cron.
+- Test SMS and WhatsApp delivery.

@@ -1,10 +1,10 @@
 # MedTrack Project Handoff
 
-Last updated: 2026-06-03
+Last updated: 2026-06-12
 
 ## Project Goal
 
-MedTrack is a medication management and reminder application. The immediate goal is to let users securely sign up, manage medication records, configure reminder channels, and maintain profile details using Supabase. The next major goal is server-side delivery of reminder notifications through email and WhatsApp.
+MedTrack is a medication management and reminder application. The immediate goal is to let users securely sign up, manage medication records, configure reminder channels, and maintain profile details using Supabase. The next major goal is server-side delivery of reminder notifications through SMS and WhatsApp.
 
 The app is currently focused on patient-facing CRUD and reminder preference management. Notification delivery itself is not production-ready yet.
 
@@ -33,6 +33,7 @@ Database source-of-truth files now live in:
 
 - `supabase/migrations/20260513000000_medtrack_schema.sql`
 - `supabase/migrations/20260513000001_avatar_storage.sql`
+- `supabase/migrations/20260612000000_sms_whatsapp_notifications.sql`
 
 ### Removed Backend Prototype
 
@@ -59,7 +60,8 @@ Core tables:
 - `reminders`
   - User-owned reminder preference rows.
   - Separate rows represent separate channels.
-  - If a medication uses both email and WhatsApp, it has an `email` row and a `whatsapp` row.
+  - If a medication uses both SMS and WhatsApp, it has an `sms` row and a `whatsapp` row.
+  - Delivery fields include `last_sent_at`, `last_error`, `send_attempts`, and `locked_until`.
 - `adherence`
   - Prepared for future medication-taking history.
   - Current frontend analytics mostly uses placeholder/mock data.
@@ -99,6 +101,15 @@ Important local redirect behavior:
   - Creates tables, indexes, update triggers, profile creation trigger, and RLS policies.
 - `supabase/migrations/20260513000001_avatar_storage.sql`
   - Creates/updates private `avatars` bucket and Storage policies.
+- `supabase/migrations/20260612000000_sms_whatsapp_notifications.sql`
+  - Switches reminder channel type from email to SMS.
+  - Adds delivery tracking and locking fields.
+  - Adds `claim_due_reminders()` for the Edge Function.
+- `supabase/functions/send-reminders/index.ts`
+  - Claims due reminders.
+  - Sends SMS/WhatsApp through Twilio.
+  - Reschedules processed reminders to their next daily occurrence.
+  - Records last success/error metadata.
 
 ### Frontend
 
@@ -139,12 +150,13 @@ Important local redirect behavior:
   - Stores medication times as `text[]`.
 - `frontend/src/pages/Reminders.jsx`
   - Reminder channel preference UI.
-  - Email and WhatsApp are independent channel buttons.
-  - Supports email-only, WhatsApp-only, both, or neither.
-  - Shows a phone-number prompt if WhatsApp is enabled and `profiles.phone_number` is blank.
+  - SMS and WhatsApp are independent channel buttons.
+  - Supports SMS-only, WhatsApp-only, both, or neither.
+  - Shows a phone-number prompt if SMS/WhatsApp is enabled and `profiles.phone_number` is blank.
 - `frontend/src/pages/Profile.jsx`
   - Profile editing.
   - Uploads avatars to Supabase Storage under `avatars/{userId}/...`.
+  - Validates phone numbers in E.164 format for SMS/WhatsApp delivery.
 
 ## Libraries And Frameworks
 
@@ -212,10 +224,18 @@ Supabase:
 - Reminder page crash from missing `Plus` import was fixed.
 - Large orange reminder header was replaced with a compact white summary panel.
 - Reminder rows were redesigned into a sleeker layout.
-- Email and WhatsApp are independent selections.
-- User can choose email only, WhatsApp only, both, or neither.
+- SMS and WhatsApp are independent selections.
+- User can choose SMS only, WhatsApp only, both, or neither.
 - Both channels are represented as separate `reminders` rows.
-- If WhatsApp is selected and no phone number exists, UI prompts the user to add it in Profile Settings.
+- If SMS/WhatsApp is selected and no phone number exists, UI prompts the user to add it in Profile Settings.
+
+### Notification Delivery
+
+- Added Supabase migration for SMS/WhatsApp notification delivery.
+- Added `claim_due_reminders()` RPC for safe due-reminder claiming.
+- Added Supabase Edge Function `send-reminders`.
+- The function uses Twilio credentials from Supabase Edge Function secrets.
+- The function does not use SendGrid.
 
 ### Cleanup
 
@@ -227,13 +247,13 @@ Supabase:
 
 ### Notification Delivery
 
-Reminder preferences are stored in the database, but actual notification sending is not implemented yet.
+Reminder preferences are stored in the database and the Edge Function code exists, but remote deployment, secrets, and cron setup must still be completed.
 
 Recommended path:
 
 - Use Supabase Edge Function + Supabase Cron.
-- Store SendGrid/Twilio secrets as Supabase Edge Function secrets.
-- Do not expose SendGrid/Twilio secrets to frontend.
+- Store Twilio secrets as Supabase Edge Function secrets.
+- Do not expose Twilio secrets to frontend.
 - Do not reintroduce an always-on Express poller unless the product direction changes.
 
 ### Analytics / Adherence
@@ -340,9 +360,8 @@ Fix:
 
 ## Bugs Still Open
 
-- Notification delivery is not implemented in final form.
-- No retry/locking mechanism exists yet for reminder sending.
-- No delivery log fields exist on `reminders` yet.
+- Notification delivery code exists, but remote deployment/cron verification is still open.
+- Retry behavior is simple: failures are recorded and the reminder is advanced to the next daily occurrence.
 - No production SMTP/custom auth email configuration is documented as complete.
 - Forgot password route may be missing.
 - Terms/privacy route pages may be missing.
@@ -401,7 +420,7 @@ Reason:
 
 Decision:
 
-- Email and WhatsApp are separate reminder rows.
+- SMS and WhatsApp are separate reminder rows.
 
 Reason:
 
@@ -412,7 +431,7 @@ Reason:
 
 Decision:
 
-- Plan notification delivery with Supabase Edge Functions scheduled by Supabase Cron.
+- Deliver notifications with Supabase Edge Functions scheduled by Supabase Cron.
 
 Reason:
 
@@ -436,9 +455,10 @@ Reason:
 
 - Local email confirmation links redirect to localhost; they will not open correctly from another device unless using a reachable dev URL or production deployment.
 - Supabase default auth email service is fine for dev but limited for production.
+- Twilio SMS trial accounts may only send to verified recipient numbers.
 - Twilio WhatsApp sandbox requires recipients to join the sandbox before receiving test messages.
 - Production WhatsApp may require approved sender/templates.
-- Reminder delivery is not implemented yet.
+- Reminder delivery needs remote deployment and cron verification.
 - Current reminders do not account for explicit user timezone settings.
 - Current recurrence model is simplistic.
 - Analytics is mostly placeholder.
@@ -447,13 +467,13 @@ Reason:
 
 High priority:
 
-- Implement Supabase Edge Function `send-reminders`.
-- Add SQL migration for reminder locking/rescheduling/delivery tracking.
+- Apply the SMS/WhatsApp notification migration to Supabase.
+- Deploy Supabase Edge Function `send-reminders`.
 - Configure Supabase Cron.
-- Add SendGrid/Twilio secrets to Supabase Edge Function secrets.
-- Verify SendGrid sender identity/domain.
+- Add Twilio secrets to Supabase Edge Function secrets.
+- Verify Twilio SMS delivery to the demo phone number.
 - Verify Twilio WhatsApp sandbox or production sender.
-- Test email and WhatsApp reminder delivery end to end.
+- Test SMS and WhatsApp reminder delivery end to end.
 
 Medium priority:
 

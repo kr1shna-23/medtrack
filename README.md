@@ -18,7 +18,7 @@ There is no active Express/Node backend in this repository. The old polling/serv
 - Google OAuth login/signup.
 - Protected app routes.
 - Medication CRUD with multiple dose times.
-- Reminder channel preferences for email, WhatsApp, both, or neither.
+- Reminder channel preferences for SMS, WhatsApp, both, or neither.
 - Profile update and private avatar storage.
 
 ## Setup
@@ -57,10 +57,19 @@ These create the app tables, RLS policies, profile creation trigger, and private
 
 ## Notifications
 
-Email and WhatsApp delivery is not implemented yet. The planned approach is:
+SMS and WhatsApp delivery is implemented as a Supabase Edge Function path. Deploy/configuration is still required before it runs remotely:
 
 - Supabase Edge Function named `send-reminders`.
 - Supabase Cron invoking that function every minute.
-- SendGrid for email.
-- Twilio WhatsApp for WhatsApp.
+- Twilio SMS for SMS reminders.
+- Twilio WhatsApp Sandbox or approved sender for WhatsApp reminders.
 - Secrets stored in Supabase Edge Function secrets, never in frontend code.
+
+Required Edge Function secrets:
+
+```env
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_SMS_FROM_NUMBER=
+TWILIO_WHATSAPP_NUMBER=
+```

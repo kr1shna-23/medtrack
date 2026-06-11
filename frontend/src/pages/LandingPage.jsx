@@ -208,7 +208,7 @@ const LandingPage = () => {
                 transition={{ duration: 0.8, delay: 0.6 }}
                 className="text-base sm:text-lg text-gray-200 leading-relaxed mb-6 sm:mb-8 max-w-lg"
               >
-                Smart medication tracking with WhatsApp & email reminders. Perfect for all patients, chronic conditions,
+                Smart medication tracking with SMS and WhatsApp reminders. Perfect for all patients, chronic conditions,
                 and caregivers who want peace of mind.
               </motion.p>
 

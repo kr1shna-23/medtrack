@@ -3,6 +3,11 @@ import { User, Upload } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
 import { supabase } from "../lib/supabase"
 
+const isValidE164PhoneNumber = (value) => {
+  if (!value) return true
+  return /^\+[1-9]\d{7,14}$/.test(value.trim())
+}
+
 const Avatar = ({ path, onUpload, isEditing, userId }) => {
   const [avatarUrl, setAvatarUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -161,16 +166,21 @@ const Profile = () => {
       setLoading(true)
       setError(null)
 
+      const phoneNumber = formData.phone_number.trim()
+      if (!isValidE164PhoneNumber(phoneNumber)) {
+        throw new Error("Phone number must use international format, for example +919876543210.")
+      }
+
       const { error } = await supabase.from("profiles").upsert({
         id: session.user.id,
         full_name: formData.full_name,
-        phone_number: formData.phone_number,
+        phone_number: phoneNumber,
         avatar_url: formData.avatar_url,
       })
       if (error) throw error;
 
       await supabase.auth.updateUser({
-        data: { full_name: formData.full_name, phone_number: formData.phone_number }
+        data: { full_name: formData.full_name, phone_number: phoneNumber }
       })
 
       setIsEditing(false)
@@ -262,8 +272,14 @@ const Profile = () => {
               value={formData.phone_number}
               onChange={handleChange}
               disabled={!isEditing}
+              placeholder="+919876543210"
               className="mt-1 w-full p-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             />
+            {isEditing && (
+              <p className="mt-1 text-xs text-gray-500">
+                Required for SMS and WhatsApp reminders. Include country code.
+              </p>
+            )}
           </div>
         </div>
       </div>

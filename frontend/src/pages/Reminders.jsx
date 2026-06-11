@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Bell, Clock, Calendar, CheckCircle2, MessageSquare, Mail, AlertCircle, Plus } from "lucide-react"
+import { Bell, Clock, Calendar, CheckCircle2, MessageSquare, Smartphone, AlertCircle, Plus } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
 import { supabase } from "../lib/supabase"
 
@@ -13,6 +13,8 @@ const getMedicationTimes = (medication) => {
   const cleanTimes = times.map((time) => time || "").filter(Boolean)
   return cleanTimes.length > 0 ? cleanTimes : ["08:00"]
 }
+
+const isSmsReminder = (reminder) => reminder.type === "sms" || reminder.type === "email"
 
 const buildReminderRows = (medication, userId, channel) => {
   return getMedicationTimes(medication).map((timeStr) => {
@@ -62,10 +64,10 @@ const ChannelButton = ({ active, icon, label, tone, onClick }) => {
 
 const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
   const medicationReminders = getMedicationReminders(reminders, medication.id)
-  const emailEnabled = medicationReminders.some((reminder) => reminder.type === "email")
+  const smsEnabled = medicationReminders.some(isSmsReminder)
   const whatsappEnabled = medicationReminders.some((reminder) => reminder.type === "whatsapp")
-  const isEnabled = emailEnabled || whatsappEnabled
-  const showWhatsappNotice = whatsappEnabled && !profile?.phone_number
+  const isEnabled = smsEnabled || whatsappEnabled
+  const showPhoneNotice = isEnabled && !profile?.phone_number
 
   const timeString = Array.isArray(medication.time)
     ? medication.time.join(", ")
@@ -83,7 +85,7 @@ const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
               </span>
             ) : (
               <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
-                Email default
+                No alerts
               </span>
             )}
           </div>
@@ -98,11 +100,11 @@ const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
         <div className="flex flex-col gap-2 lg:min-w-[310px] lg:border-l lg:border-gray-100 lg:pl-5">
           <div className="flex flex-wrap items-center gap-2">
             <ChannelButton
-              active={emailEnabled}
-              icon={Mail}
-              label="Email"
+              active={smsEnabled}
+              icon={Smartphone}
+              label="SMS"
               tone="blue"
-              onClick={() => onChannelToggle(medication, "email", !emailEnabled)}
+              onClick={() => onChannelToggle(medication, "sms", !smsEnabled)}
             />
             <ChannelButton
               active={whatsappEnabled}
@@ -113,9 +115,9 @@ const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
             />
           </div>
 
-          {showWhatsappNotice && (
+          {showPhoneNotice && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
-              Add your WhatsApp number in <a href="/app/profile" className="font-medium underline">Profile Settings</a>.
+              Add your phone number in <a href="/app/profile" className="font-medium underline">Profile Settings</a> using international format, for example +919876543210.
             </p>
           )}
         </div>
@@ -133,7 +135,7 @@ const Reminders = () => {
   const [error, setError] = useState(null)
 
   const activeMedicationCount = new Set(reminders.map((reminder) => reminder.medication_id)).size
-  const emailCount = reminders.filter((reminder) => reminder.type === "email").length
+  const smsCount = reminders.filter(isSmsReminder).length
   const whatsappCount = reminders.filter((reminder) => reminder.type === "whatsapp").length
 
   const fetchData = async () => {
@@ -172,7 +174,9 @@ const Reminders = () => {
       setError(null)
 
       if (shouldEnable) {
-        const existing = getMedicationReminders(reminders, medication.id).some((reminder) => reminder.type === channel)
+        const existing = getMedicationReminders(reminders, medication.id).some((reminder) => (
+          channel === "sms" ? isSmsReminder(reminder) : reminder.type === channel
+        ))
         if (existing) return
 
         const { data, error } = await supabase
@@ -188,10 +192,13 @@ const Reminders = () => {
           .delete()
           .eq("medication_id", medication.id)
           .eq("user_id", session.user.id)
-          .eq("type", channel)
+          .in("type", channel === "sms" ? ["sms", "email"] : [channel])
 
         if (error) throw error
-        setReminders((prev) => prev.filter((reminder) => !(reminder.medication_id === medication.id && reminder.type === channel)))
+        setReminders((prev) => prev.filter((reminder) => {
+          if (reminder.medication_id !== medication.id) return true
+          return channel === "sms" ? !isSmsReminder(reminder) : reminder.type !== channel
+        }))
       }
     } catch (err) {
       console.error("Reminder channel update error:", err)
@@ -215,7 +222,7 @@ const Reminders = () => {
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Notification Settings</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Choose email, WhatsApp, both, or neither for each medication.
+              Choose SMS, WhatsApp, both, or neither for each medication.
             </p>
           </div>
 
@@ -225,8 +232,8 @@ const Reminders = () => {
               <p className="text-xs text-gray-500">Active meds</p>
             </div>
             <div className="rounded-md bg-blue-50 border border-blue-100 px-3 py-2">
-              <p className="text-lg font-semibold text-blue-700">{emailCount}</p>
-              <p className="text-xs text-blue-600">Email</p>
+              <p className="text-lg font-semibold text-blue-700">{smsCount}</p>
+              <p className="text-xs text-blue-600">SMS</p>
             </div>
             <div className="rounded-md bg-green-50 border border-green-100 px-3 py-2">
               <p className="text-lg font-semibold text-green-700">{whatsappCount}</p>
