@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Bell, Clock, Calendar, CheckCircle2, MessageSquare, Smartphone, AlertCircle, Plus } from "lucide-react"
+import { Bell, Clock, Calendar, CheckCircle2, MessageSquare, Smartphone, AlertCircle, Plus, Info } from "lucide-react"
 import { useSession } from "../contexts/SessionContext"
 import { supabase } from "../lib/supabase"
 
@@ -15,6 +15,55 @@ const getMedicationTimes = (medication) => {
 }
 
 const isSmsReminder = (reminder) => reminder.type === "sms" || reminder.type === "email"
+
+const formatDeliveryTime = (value) => {
+  if (!value) return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+const getLatestByDate = (items, field) => {
+  return [...items]
+    .filter((item) => item[field])
+    .sort((a, b) => new Date(b[field]).getTime() - new Date(a[field]).getTime())[0]
+}
+
+const getDeliveryStatus = (channelReminders, label) => {
+  if (channelReminders.length === 0) return null
+
+  const latestError = getLatestByDate(
+    channelReminders.filter((reminder) => reminder.last_error),
+    "updated_at"
+  )
+
+  if (latestError?.last_error) {
+    return {
+      tone: "red",
+      text: `${label}: ${latestError.last_error}`,
+    }
+  }
+
+  const latestSent = getLatestByDate(channelReminders, "last_sent_at")
+  if (latestSent?.last_sent_at) {
+    return {
+      tone: "green",
+      text: `${label}: Sent ${formatDeliveryTime(latestSent.last_sent_at)}`,
+    }
+  }
+
+  return {
+    tone: "gray",
+    text: `${label}: Scheduled`,
+  }
+}
 
 const buildReminderRows = (medication, userId, channel) => {
   return getMedicationTimes(medication).map((timeStr) => {
@@ -62,12 +111,34 @@ const ChannelButton = ({ active, icon, label, tone, onClick }) => {
   )
 }
 
+const DeliveryStatus = ({ status }) => {
+  if (!status) return null
+
+  const styles = {
+    green: "border-green-100 bg-green-50 text-green-700",
+    red: "border-red-100 bg-red-50 text-red-700",
+    gray: "border-gray-200 bg-gray-50 text-gray-600",
+  }
+
+  return (
+    <p className={`rounded-md border px-3 py-2 text-xs ${styles[status.tone] || styles.gray}`}>
+      {status.text}
+    </p>
+  )
+}
+
 const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
   const medicationReminders = getMedicationReminders(reminders, medication.id)
+  const smsReminders = medicationReminders.filter(isSmsReminder)
+  const whatsappReminders = medicationReminders.filter((reminder) => reminder.type === "whatsapp")
   const smsEnabled = medicationReminders.some(isSmsReminder)
-  const whatsappEnabled = medicationReminders.some((reminder) => reminder.type === "whatsapp")
+  const whatsappEnabled = whatsappReminders.length > 0
   const isEnabled = smsEnabled || whatsappEnabled
   const showPhoneNotice = isEnabled && !profile?.phone_number
+  const deliveryStatuses = [
+    getDeliveryStatus(smsReminders, "SMS"),
+    getDeliveryStatus(whatsappReminders, "WhatsApp"),
+  ].filter(Boolean)
 
   const timeString = Array.isArray(medication.time)
     ? medication.time.join(", ")
@@ -119,6 +190,14 @@ const ReminderRow = ({ medication, reminders, profile, onChannelToggle }) => {
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
               Add your phone number in <a href="/app/profile" className="font-medium underline">Profile Settings</a> using international format, for example +919876543210.
             </p>
+          )}
+
+          {deliveryStatuses.length > 0 && (
+            <div className="space-y-1">
+              {deliveryStatuses.map((status) => (
+                <DeliveryStatus key={status.text} status={status} />
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -241,6 +320,13 @@ const Reminders = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex gap-3 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <Info size={18} className="mt-0.5 flex-shrink-0" />
+        <p>
+          SMS and WhatsApp delivery uses Twilio. Trial or sandbox accounts may only send to verified numbers, but reminder preferences will still be saved.
+        </p>
       </div>
 
       {error && (

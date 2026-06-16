@@ -103,6 +103,8 @@ TWILIO_WHATSAPP_NUMBER=
 - `frontend/src/pages/Reminders.jsx`
   - SMS/WhatsApp reminder channel preferences.
   - Stores both selected channels as separate `reminders` rows.
+  - Shows per-channel delivery status from `last_sent_at` and `last_error`.
+  - Shows a Twilio trial/sandbox limitation note.
 - `supabase/functions/send-reminders/index.ts`
   - Edge Function that claims due reminders, sends Twilio SMS/WhatsApp, and reschedules reminder rows.
 - `frontend/src/pages/Profile.jsx`
@@ -147,10 +149,10 @@ Working:
 - Profile update.
 - Avatar upload to Supabase Storage.
 - Reminder channel preference CRUD.
+- SMS/WhatsApp delivery through Supabase Edge Function and Cron.
 
 Partially done:
 
-- Notification delivery.
 - Analytics/adherence.
 
 Not confirmed or likely missing:
@@ -168,6 +170,7 @@ Recommended direction:
 4. Configure Twilio secrets in Supabase.
 5. Use Supabase Cron to invoke the Edge Function every minute.
 6. Reschedule successful recurring reminders and record failures.
+7. Pause cron with `select cron.unschedule('send-medtrack-reminders-every-minute');` when demo delivery should stop.
 
 Do not implement notification sending in the frontend.
 

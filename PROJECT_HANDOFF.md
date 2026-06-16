@@ -1,12 +1,12 @@
 # MedTrack Project Handoff
 
-Last updated: 2026-06-12
+Last updated: 2026-06-17
 
 ## Project Goal
 
 MedTrack is a medication management and reminder application. The immediate goal is to let users securely sign up, manage medication records, configure reminder channels, and maintain profile details using Supabase. The next major goal is server-side delivery of reminder notifications through SMS and WhatsApp.
 
-The app is currently focused on patient-facing CRUD and reminder preference management. Notification delivery itself is not production-ready yet.
+The app is currently focused on patient-facing CRUD, reminder preference management, and demo-ready SMS/WhatsApp notification delivery.
 
 ## Current Architecture
 
@@ -228,6 +228,8 @@ Supabase:
 - User can choose SMS only, WhatsApp only, both, or neither.
 - Both channels are represented as separate `reminders` rows.
 - If SMS/WhatsApp is selected and no phone number exists, UI prompts the user to add it in Profile Settings.
+- Reminder rows show per-channel delivery status from `last_sent_at` and `last_error`.
+- The Reminders page includes a small Twilio trial/sandbox limitation note.
 
 ### Notification Delivery
 
@@ -236,6 +238,8 @@ Supabase:
 - Added Supabase Edge Function `send-reminders`.
 - The function uses Twilio credentials from Supabase Edge Function secrets.
 - The function does not use SendGrid.
+- Supabase Cron was configured to invoke the function every minute.
+- Manual and cron-triggered SMS/WhatsApp test delivery succeeded.
 
 ### Cleanup
 
@@ -244,17 +248,6 @@ Supabase:
 - Removed tracked Supabase `.temp` files from the old nested backend Supabase folder.
 
 ## Features Partially Completed
-
-### Notification Delivery
-
-Reminder preferences are stored in the database and the Edge Function code exists, but remote deployment, secrets, and cron setup must still be completed.
-
-Recommended path:
-
-- Use Supabase Edge Function + Supabase Cron.
-- Store Twilio secrets as Supabase Edge Function secrets.
-- Do not expose Twilio secrets to frontend.
-- Do not reintroduce an always-on Express poller unless the product direction changes.
 
 ### Analytics / Adherence
 
@@ -360,7 +353,6 @@ Fix:
 
 ## Bugs Still Open
 
-- Notification delivery code exists, but remote deployment/cron verification is still open.
 - Retry behavior is simple: failures are recorded and the reminder is advanced to the next daily occurrence.
 - No production SMTP/custom auth email configuration is documented as complete.
 - Forgot password route may be missing.
@@ -458,7 +450,8 @@ Reason:
 - Twilio SMS trial accounts may only send to verified recipient numbers.
 - Twilio WhatsApp sandbox requires recipients to join the sandbox before receiving test messages.
 - Production WhatsApp may require approved sender/templates.
-- Reminder delivery needs remote deployment and cron verification.
+- Cron should be paused when demos/testing are finished to avoid unnecessary Twilio usage:
+  `select cron.unschedule('send-medtrack-reminders-every-minute');`
 - Current reminders do not account for explicit user timezone settings.
 - Current recurrence model is simplistic.
 - Analytics is mostly placeholder.
@@ -467,20 +460,15 @@ Reason:
 
 High priority:
 
-- Apply the SMS/WhatsApp notification migration to Supabase.
-- Deploy Supabase Edge Function `send-reminders`.
-- Configure Supabase Cron.
-- Add Twilio secrets to Supabase Edge Function secrets.
-- Verify Twilio SMS delivery to the demo phone number.
-- Verify Twilio WhatsApp sandbox or production sender.
-- Test SMS and WhatsApp reminder delivery end to end.
-
-Medium priority:
-
 - Clean existing lint warnings.
 - Add forgot password page and flow.
 - Add terms/privacy pages or remove dead links until ready.
 - Add real analytics/adherence workflows.
+- Decide when to pause notification cron before/after public demos.
+
+Medium priority:
+
+- Add a delivery history table if richer notification audit logs become important.
 
 Lower priority:
 

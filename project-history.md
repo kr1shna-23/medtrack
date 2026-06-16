@@ -392,3 +392,32 @@ Remaining:
 - Deploy the Edge Function.
 - Configure Supabase Cron.
 - Test SMS and WhatsApp delivery.
+
+## Checkpoint 23: SMS/WhatsApp Delivery Verified
+
+The SMS/WhatsApp notification path was completed and tested end to end.
+
+Completed:
+
+- SMS/WhatsApp notification migration ran successfully in Supabase.
+- Twilio secrets were set in Supabase Edge Function secrets.
+- Edge Function `send-reminders` was deployed.
+- Manual Edge Function invocation succeeded.
+- Profile phone number issue was diagnosed:
+  - UI initially showed `+91...`, but database rows contained `9773297345`.
+  - The profile rows were corrected to E.164 format.
+- Manual test sent both:
+  - WhatsApp reminder.
+  - SMS reminder.
+- Supabase Cron job `send-medtrack-reminders-every-minute` was created and active.
+- Cron-triggered delivery succeeded for SMS and WhatsApp.
+- Reminders UI was polished to show delivery status from `last_sent_at` and `last_error`.
+- A Twilio trial/sandbox limitation note was added to the Reminders page.
+
+Operational note:
+
+- Pause cron after demos/testing to avoid unnecessary Twilio usage:
+
+```sql
+select cron.unschedule('send-medtrack-reminders-every-minute');
+```

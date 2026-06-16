@@ -57,7 +57,7 @@ These create the app tables, RLS policies, profile creation trigger, and private
 
 ## Notifications
 
-SMS and WhatsApp delivery is implemented as a Supabase Edge Function path. Deploy/configuration is still required before it runs remotely:
+SMS and WhatsApp delivery is implemented through Supabase Edge Functions and Supabase Cron:
 
 - Supabase Edge Function named `send-reminders`.
 - Supabase Cron invoking that function every minute.
@@ -72,4 +72,10 @@ TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_SMS_FROM_NUMBER=
 TWILIO_WHATSAPP_NUMBER=
+```
+
+Twilio trial/sandbox delivery may be limited to verified recipients. For demos, keep the cron enabled only while testing or recording. To pause automated sending:
+
+```sql
+select cron.unschedule('send-medtrack-reminders-every-minute');
 ```

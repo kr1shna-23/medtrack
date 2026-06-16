@@ -1,0 +1,42 @@
+-- Template: invoke the send-reminders Edge Function every minute.
+-- Replace the placeholder values before running in Supabase SQL Editor.
+-- Do not commit real keys in this file.
+
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
+select vault.create_secret(
+  'https://YOUR_PROJECT_REF.supabase.co',
+  'medtrack_project_url'
+);
+
+select vault.create_secret(
+  'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY',
+  'medtrack_function_auth_token'
+);
+
+select cron.schedule(
+  'send-medtrack-reminders-every-minute',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'medtrack_project_url')
+      || '/functions/v1/send-reminders',
+    headers := jsonb_build_object(
+      'Content-type', 'application/json',
+      'Authorization', 'Bearer '
+        || (select decrypted_secret from vault.decrypted_secrets where name = 'medtrack_function_auth_token')
+    ),
+    body := jsonb_build_object(
+      'source', 'pg_cron',
+      'time', now()
+    )
+  ) as request_id;
+  $$
+);
+
+-- To pause later and stop spending Twilio credits:
+-- select cron.unschedule('send-medtrack-reminders-every-minute');
+
+-- To confirm whether the job is active:
+-- select jobid, schedule, active, jobname from cron.job;
